@@ -13,23 +13,41 @@ var ETHEREUM_CLIENT = new Web3(new Web3.providers.HttpProvider("http://localhost
 class DevicesList extends Component {
   render(){
     var es = this.props.es
-    //var dm = this.props.dm
-    var deviceHashes = [];
-    //var devicesCount = dm.getDevicesCount.call()
+    var am = this.props.am
 
+    var devices = {}
     var currentIndex = es.getDllIndex("0x0",true);
-    deviceHashes.push(currentIndex)
 
-    //console.log("CurrIndex="+currentIndex)
-    while (currentIndex !== "0x0")
+    // TODO: make it async way
+    while (parseInt(currentIndex, 16) !== 0)
     {
-      var device = es.getInfoByHash.call(currentIndex)
-      deviceHashes.push(device)
-      currentIndex = es.getDllIndex(currentIndex, true)
+      var index_info = es.getInfoByHash.call(currentIndex)
+      var new_index = es.getDllIndex(currentIndex,true)
+      var id = index_info[2].toString()
+      console.log(id)
+      if (devices[id] === undefined) {
+        // am.getDeviceById.call(id,(error,result)=>(devices[id] = result))
+        var result = am.getDeviceById.call(id)
+        devices[id] = result
+      }
+      currentIndex = new_index
     }
 
+    console.log(devices)
+
     var output =
-    <p>Iterated through devices: {deviceHashes}</p>
+    <div>
+      <p>Iterated through devices full index: </p>
+      <ul>
+        {
+        Object.keys(devices).map(function(key){
+                    // TODO: make device component
+                    return <li key={key}>{key}:{devices[key]}</li>;
+                  })
+        }
+      </ul>
+    </div>
+
 
     return output;
   }
@@ -79,7 +97,7 @@ class App extends Component {
 
     var esABI = [{"constant":true,"inputs":[{"name":"record","type":"bytes32"}],"name":"getBytes32Value","outputs":[{"name":"","type":"bytes32"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"record","type":"bytes32"}],"name":"getBooleanValue","outputs":[{"name":"","type":"bool"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"record","type":"bytes32"},{"name":"value","type":"bytes32"}],"name":"setBytes32Value","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"record","type":"bytes32"},{"name":"value","type":"uint256"}],"name":"setUIntValue","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"record","type":"bytes32"},{"name":"value","type":"bool"}],"name":"setBooleanValue","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"record","type":"bytes32"}],"name":"getBytesValue","outputs":[{"name":"","type":"bytes"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"record","type":"bytes32"}],"name":"getAddressValue","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"record","type":"bytes32"},{"name":"value","type":"address"}],"name":"setAddressValue","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_val","type":"bytes32"},{"name":"table","type":"string"},{"name":"column","type":"string"},{"name":"id","type":"uint256"}],"name":"setInfoToHash","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"dougAddr","type":"address"}],"name":"setDougAddress","outputs":[{"name":"result","type":"bool"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"record","type":"bytes32"}],"name":"getIntValue","outputs":[{"name":"","type":"int256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"hash","type":"bytes32"},{"name":"direction","type":"bool"}],"name":"getDllIndex","outputs":[{"name":"","type":"bytes32"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"record","type":"bytes32"}],"name":"getStringValue","outputs":[{"name":"","type":"string"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"record","type":"bytes32"},{"name":"value","type":"int256"}],"name":"setIntValue","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[],"name":"remove","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"record","type":"bytes32"}],"name":"getUIntValue","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"record","type":"bytes32"},{"name":"value","type":"bytes"}],"name":"setBytesValue","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"HashInfoStorage","outputs":[{"name":"table","type":"string"},{"name":"column","type":"string"},{"name":"id","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"val","type":"bytes32"}],"name":"getInfoByHash","outputs":[{"name":"table","type":"string"},{"name":"column","type":"string"},{"name":"id","type":"uint256"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"record","type":"bytes32"},{"name":"value","type":"string"}],"name":"setStringValue","outputs":[],"payable":false,"type":"function"}]
 
-    var dougAddress = "0x37e80474b7a647fcab6f48aef9b639794408aa82";
+    var dougAddress = "0x4e700e5a001faf7ffe7f473dd5a8de34482f433d";
     var dougContract = ETHEREUM_CLIENT.eth.contract(dougABI).at(dougAddress);
 
     var appManagerAddress = dougContract.contracts.call("AppManager");
@@ -89,7 +107,6 @@ class App extends Component {
     var appManagerContract = ETHEREUM_CLIENT.eth.contract(appManagerABI).at(appManagerAddress);
     var dmContract = ETHEREUM_CLIENT.eth.contract(dmABI).at(dmAddress);
     var esContract = ETHEREUM_CLIENT.eth.contract(esABI).at(esAddress);
-
 
     this.state = {
       amContract: appManagerContract,
@@ -114,7 +131,7 @@ class App extends Component {
         <p className="App-intro">
           Devices registered on blockchain:
         </p>
-        <DevicesList es={this.state.esContract} dm={this.state.dmContract}/>
+        <DevicesList es={this.state.esContract} dm={this.state.dmContract} am={this.state.amContract}/>
 
       </div>
     );
