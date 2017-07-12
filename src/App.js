@@ -41,6 +41,16 @@ const App = () => (
 
 injectTapEventPlugin();
 
+function sleep(milliseconds) {
+  var start = new Date().getTime();
+  for (var i = 0; i < 1e7; i++) {
+    if ((new Date().getTime() - start) > milliseconds){
+      break;
+    }
+  }
+}
+
+
 var ETHEREUM_CLIENT = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 
 var dougABI = [{"constant":false,"inputs":[{"name":"name","type":"string"}],"name":"contracts","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"name","type":"string"}],"name":"removeContract","outputs":[{"name":"result","type":"bool"}],"payable":false,"type":"function"},{"constant":false,"inputs":[],"name":"remove","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"name","type":"string"},{"name":"addr","type":"address"}],"name":"addContract","outputs":[{"name":"result","type":"bool"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"contracts","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"inputs":[],"payable":false,"type":"constructor"}]
@@ -77,7 +87,7 @@ class MyApp extends Component {
     this.state =
     {
       contractsInitialized: false,
-      dougAddress: "0x0",
+      dougAddress: props.doug,
       appManagerAddress: "0x0",
       dmAddress: "0x0",
       esAddress: "0x0",
@@ -93,21 +103,49 @@ class MyApp extends Component {
     var dougContract = ETHEREUM_CLIENT.eth.contract(dougABI).at(dougAddress);
 
     var appManagerAddress = "0x0"
-    console.log(appManagerAddress)
     dougContract.contracts.call("AppManager", (e, r) => {
       if (!e) {
-        console.log(r)
-        this.setState({appManagerAddress: r})
+        sleep(2000)
+        this.setState({
+          appManagerAddress: r,
+          amContract:  ETHEREUM_CLIENT.eth.contract(appManagerABI).at(r)
+        })
       } else {
         console.log(e)
       }
     });
-    var dmAddress = dougContract.contracts.call("DeviceManager");
-    var esAddress = dougContract.contracts.call("EternalStorage");
 
-    var appManagerContract = ETHEREUM_CLIENT.eth.contract(appManagerABI).at(appManagerAddress);
-    var dmContract = ETHEREUM_CLIENT.eth.contract(dmABI).at(dmAddress);
-    var esContract = ETHEREUM_CLIENT.eth.contract(esABI).at(esAddress);
+    var dmAddress = "0x0"
+    dougContract.contracts.call("DeviceManager", (e, r) => {
+      if (!e) {
+        sleep(2000)
+        this.setState({
+          dmAddress: r,
+          dmContract: ETHEREUM_CLIENT.eth.contract(dmABI).at(r)
+        })
+      } else {
+        console.log(e)
+      }
+    });
+
+    var esAddress = "0x0"
+    dougContract.contracts.call("EternalStorage", (e, r) => {
+      if (!e) {
+        sleep(4000)
+        this.setState({
+          esAddress: r,
+          esContract: ETHEREUM_CLIENT.eth.contract(esABI).at(r)
+        })
+      } else {
+        console.log(e)
+      }
+    });
+    // var dmAddress = dougContract.contracts.call("DeviceManager");
+    // var esAddress = dougContract.contracts.call("EternalStorage");
+    //
+    //
+    // var dmContract = ETHEREUM_CLIENT.eth.contract(dmABI).at(dmAddress);
+    // var esContract = ETHEREUM_CLIENT.eth.contract(esABI).at(esAddress);
 
     /*if (parseInt(appManagerAddress, 16) !== 0 &&
       parseInt(dmAddress, 16) !== 0 &&
@@ -135,18 +173,12 @@ class MyApp extends Component {
   }
 
   render() {
-    var content;
-    if (this.state.contractsInitialized) {
-      content = (
-        <div>
-          <ContractsInfo rootstate={this.state}/>
-          <DevicesList es={this.state.esContract} dm={this.state.dmContract} am={this.state.amContract}/>
-        </div>
-      )
-    } else
-    {
-      content = <DougForm address={this.state.dougAddress} onAddressChange={this.handleDougInput}/>
-    }
+
+    // } else
+    // {
+    //   content = <DougForm address={this.state.dougAddress} onAddressChange={this.handleDougInput}/>
+    // }
+
     return (
       <div className="App">
 
@@ -166,7 +198,8 @@ class MyApp extends Component {
         </Drawer>
 
         <div id="central">
-          {content}
+            <ContractsInfo rootstate={this.state}/>
+            <DevicesList es={this.state.esContract} dm={this.state.dmContract} am={this.state.amContract}/>
         </div>
       </div>
     );
@@ -177,6 +210,13 @@ class DevicesList extends Component {
   render(){
     var es = this.props.es
     var am = this.props.am
+    console.log("es, am")
+    console.log(es, am)
+
+    if (am === undefined || es === undefined)
+    {return (
+      <div>loading devices list...</div>
+    )}
 
     var devices = {}
     var currentIndex = es.getDllIndex("0x0",true);
