@@ -34,7 +34,8 @@ const paper_style = {
 
 const App = () => (
   <MuiThemeProvider>
-    <MyApp />
+    <MyApp doug="0x4e700e5a001faf7ffe7f473dd5a8de34482f433d"/>
+    {/*<MyApp doug=""/>*/}
   </MuiThemeProvider>
 );
 
@@ -56,34 +57,51 @@ class MyApp extends Component {
   }
 
   componentDidMount() {
+
+    if (this.props.doug !== "")
+    {
+      this.updateContracts(this.props.doug)
+    }
   }
 
   constructor(props)
   {
     super(props)
-    var dougAddress = "0x4e700e5a001faf7ffe7f473dd5a8de34482f433d"
-    var dougContract = ETHEREUM_CLIENT.eth.contract(dougABI).at(dougAddress);
-
-    var appManagerAddress = dougContract.contracts.call("AppManager");
-    var dmAddress = dougContract.contracts.call("DeviceManager");
-    var esAddress = dougContract.contracts.call("EternalStorage");
-
-    var appManagerContract = ETHEREUM_CLIENT.eth.contract(appManagerABI).at(appManagerAddress);
-    var dmContract = ETHEREUM_CLIENT.eth.contract(dmABI).at(dmAddress);
-    var esContract = ETHEREUM_CLIENT.eth.contract(esABI).at(esAddress);
-
-    this.state = {
-      amContract: appManagerContract,
-      esContract: esContract,
-      dmContract: dmContract,
+    this.handleToggle = this.handleToggle.bind(this)
+    this.handleClose = this.handleClose.bind(this)
+    this.handleDougInput = this.handleDougInput.bind(this)
+    // this.state = {
+    //   contractsInitialized: false,
+    //   drawerOpened: false
+    // }
+    this.state =
+    {
+      contractsInitialized: false,
+      dougAddress: "0x0",
+      appManagerAddress: "0x0",
+      dmAddress: "0x0",
+      esAddress: "0x0",
+      dougContract: undefined,
+      amContract: undefined,
+      esContract: undefined,
+      dmContract: undefined,
       drawerOpened: false
     }
   }
 
-  updateContracts = function(dougAddress){
+  updateContracts(dougAddress) {
     var dougContract = ETHEREUM_CLIENT.eth.contract(dougABI).at(dougAddress);
 
-    var appManagerAddress = dougContract.contracts.call("AppManager");
+    var appManagerAddress = "0x0"
+    console.log(appManagerAddress)
+    dougContract.contracts.call("AppManager", (e, r) => {
+      if (!e) {
+        console.log(r)
+        this.setState({appManagerAddress: r})
+      } else {
+        console.log(e)
+      }
+    });
     var dmAddress = dougContract.contracts.call("DeviceManager");
     var esAddress = dougContract.contracts.call("EternalStorage");
 
@@ -91,18 +109,44 @@ class MyApp extends Component {
     var dmContract = ETHEREUM_CLIENT.eth.contract(dmABI).at(dmAddress);
     var esContract = ETHEREUM_CLIENT.eth.contract(esABI).at(esAddress);
 
-    this.setState({
-      amContract: appManagerContract,
-      esContract: esContract,
-      dmContract: dmContract,
-    });
-
+    /*if (parseInt(appManagerAddress, 16) !== 0 &&
+      parseInt(dmAddress, 16) !== 0 &&
+      parseInt(esAddress, 16) !== 0)
+    {
+      this.setState({
+        contractsInitialized: true,
+        dougAddress: dougAddress,
+        appManagerAddress: appManagerAddress,
+        dmAddress: dmAddress,
+        esAddress: esAddress,
+        dougContract: dougContract,
+        amContract: appManagerContract,
+        esContract: esContract,
+        dmContract: dmContract,
+        drawerOpened: false
+      });
+    }*/
   }
 
   handleToggle = () => this.setState({drawerOpened: !this.state.drawerOpened});
   handleClose = () => this.setState({drawerOpened: false});
+  handleDougInput(newDoug){
+    this.updateContracts(newDoug)
+  }
 
   render() {
+    var content;
+    if (this.state.contractsInitialized) {
+      content = (
+        <div>
+          <ContractsInfo rootstate={this.state}/>
+          <DevicesList es={this.state.esContract} dm={this.state.dmContract} am={this.state.amContract}/>
+        </div>
+      )
+    } else
+    {
+      content = <DougForm address={this.state.dougAddress} onAddressChange={this.handleDougInput}/>
+    }
     return (
       <div className="App">
 
@@ -122,16 +166,7 @@ class MyApp extends Component {
         </Drawer>
 
         <div id="central">
-          <p>Enter contract manager address:</p>
-
-          <DougForm address="" onAddressChange=""/>
-
-          <ContractsInfo am=""/>
-
-          <p className="App-intro">
-            Devices registered on blockchain:
-          </p>
-          <DevicesList es={this.state.esContract} dm={this.state.dmContract} am={this.state.amContract}/>
+          {content}
         </div>
       </div>
     );
@@ -153,7 +188,6 @@ class DevicesList extends Component {
       var new_index = es.getDllIndex(currentIndex,true)
       var id = index_info[2].toString()
       if (devices[id] === undefined) {
-        // am.getDeviceById.call(id,(error,result)=>(devices[id] = result))
         var result = am.getDeviceById.call(id)
         devices[id] = result
       }
@@ -162,14 +196,13 @@ class DevicesList extends Component {
 
     var output =
     <div>
-      <p>Iterated through devices full index: </p>
+      <p>Devices registered on blockchain (iterated through devices full index): </p>
         {
         Object.keys(devices).map(function(key){
                     return <Device fields={devices[key]} key={key} id={key}/>;
                   })
         }
     </div>
-
 
     return output;
   }
@@ -178,32 +211,33 @@ class DevicesList extends Component {
 class DougForm extends Component {
   constructor(props) {
     super(props);
-    this.state = {value: ''};
-
     this.handleChange = this.handleChange.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
+    this.state = {value: this.props.address};
   }
 
   handleChange(event) {
-    //this.setState({value: event.target.value});
-    this.props.onChangeAddress(event.target.value)
+    this.setState({value: event.target.value});
   }
 
   handleSubmit(event) {
-    alert('A name was submitted: ' + this.state.value);
     event.preventDefault();
+    this.props.onAddressChange(this.state.value)
   }
 
   render(){
     return(
     <form onSubmit={this.handleSubmit}>
-      <label>
+    <p>Enter contract manager address:</p>
+      <label for="doug">
         Address:
-        <input
-          type="text"
-          value={this.props.address}
-          onChange={this.handleChange} />
       </label>
+      <input
+        id="doug"
+        type="text"
+        value={this.state.value}
+        onChange={this.handleChange}
+        />
       <input type="submit" value="Submit" />
     </form>
     )
@@ -227,7 +261,7 @@ class Device extends Component {
           <CardHeader
               title={title}
               subtitle="Device instance"
-              actAsExpander={false}
+              actAsExpander={true}
               showExpandableButton={false}
           />
           <CardText>
@@ -246,23 +280,23 @@ class Device extends Component {
 
 class ContractsInfo extends Component {
   render(){
-  var output = ""
-    if (this.props.am === "")
-    {
-      output =
-      <div>
-        <p>No Address manager provided</p>
-      </div>
-    }
-    else
-    {
-      output =
-      <div>
-        <p>Address Manager address:</p>
-        <p>App Manager address:</p>
-        <p>Address Manager address:</p>
-      </div>
-    }
+    var output =
+    <Paper style={paper_style} zDepth={3}>
+      <Card>
+        <CardHeader
+            title="Service Smart Contracts Info"
+            actAsExpander={false}
+            showExpandableButton={false}
+        />
+        <CardText>
+            <p>Address Manager address: {this.props.rootstate.dougAddress}</p>
+            <p>App Manager address: {this.props.rootstate.appManagerAddress}</p>
+            <p>Device Manager address: {this.props.rootstate.dmAddress}</p>
+            <p>Eternal Storage address: {this.props.rootstate.esAddress}</p>
+        </CardText>
+      </Card>
+    </Paper>
+    console.log("remdered")
     return output;
   }
 }
