@@ -21,5 +21,6 @@ window.addEventListener('load', function() {
 
 })
 
+export var ETHEREUM_CLIENT = window.web3
 
 registerServiceWorker();
